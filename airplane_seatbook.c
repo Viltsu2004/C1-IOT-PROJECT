@@ -1,99 +1,163 @@
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
+
+
+#define FILE_MAP "airplane_map.txt"
+#define FILE_LIST "passenger_list.csv"
 
 #define NAME_LENGTH 40
-#define SEAT_CHARACTER_SIZE 2
+#define SEATS 157
+#define LINE_SIZE 100
 
-typedef struct node {
-    char name[NAME_LENGTH];
-    int row_number;
-    char seat_character[SEAT_CHARACTER_SIZE];
-    struct node *next;
-} PASSENGER_INFO;
+typedef struct {
+    char firstname[NAME_LENGTH];
+    char lastname[NAME_LENGTH];
+    char seat_character;
+    int number;
+}passenger;
 
-bool menu();
-bool ask_name_and_seat(PASSENGER_INFO *new_passenger, PASSENGER_INFO *head);
-bool open_file(FILE *file, PASSENGER_INFO *new_passenger);
-bool add_passenger_to_file();
-bool print_passengers();
-bool print_seat_map();
-bool print_seats();
+int user_input_name(char *ptr, const char *str_type);
+int user_input_number(passenger *ptr);
+int user_input_seat(passenger *ptr);
 
 //main file
 int main() {
+    passenger pas = {0};
+    passenger *ptr = &pas;
 
-    FILE *my_file;
-    PASSENGER_INFO *head = NULL;
-    char *end_loop;
-    int status = true;
+    //ask name of passenger and seat where passenger wants to sit
+    while (strcmp(ptr->firstname, "stop") != 0) {
+        while (user_input_name(ptr->firstname, "firstname") != 0) {}
+        if (strcmp(ptr->firstname, "stop") != 0) {
+            while (user_input_name(ptr->lastname, "lastname") != 0) {}
+            while (user_input_number(ptr) != 0) {}
+            while (user_input_seat(ptr) != 0){}
+            printf("\n");
+            printf("%s\n", ptr->firstname);
+            printf("%s\n", ptr->lastname);
+            printf("%d\n", ptr->number);
+            printf("%c\n", ptr->seat_character);
 
-    //print menu for user that he knows what to do
-    menu();
-    //create new passenger
-    PASSENGER_INFO *new_passenger = (PASSENGER_INFO *)malloc(sizeof(PASSENGER_INFO));
-    //checks if malloc fails
-    if (new_passenger == NULL) {
-        printf("Memory allocation failed");
+        }
+    }
+}
+
+int user_input_name(char *ptr, const char *str_type) {
+
+    if (strcmp(str_type, "firstname") == 0) {
+        printf("Give your firstname, or 'stop' to exit from program.\n");
+    }
+    if (strcmp(str_type, "lastname") == 0) {
+        printf("Give your lastname.\n");
+    }
+    printf(">> ");
+    if (fgets(ptr, NAME_LENGTH, stdin) == NULL) {
+        printf("\nCan't read input.\n\n");
         return 1;
     }
 
-    //ask name of passenger and seat where passenger wants to sit
-    while (status) {
-        status = ask_name_and_seat(new_passenger, head);
+    if (ptr[strlen(ptr) - 1] != '\n') {
+        printf("\nThe name is too long.\n\n");
+        while (getchar() != '\n'){}
+        return 1;
+    }
+    if (ptr[0] == '\n') {
+        printf("\nName has to be given to get continue.\n\n");
+        return 1;
     }
 
+    if (ptr[strlen(ptr) - 1] == '\n') {
+        ptr[strlen(ptr) - 1] = '\0';
+    }
+
+    for (int i = 0; i < strlen(ptr); i++) {
+        if (!isalpha(ptr[i])) {
+            printf("Name can't include numbers or special characters including å, ä, ö.\n\n");
+            return 1;
+        }
+    }
+
+    if (strcmp(ptr, "stop") == 0) {
+        printf("%s\n", ptr);
+        return 0;
+    }
+    return 0;
 }
-bool menu() {
-    printf("In this program you can reserve place form our amazing airplane.\n\n"
-           "In this airplane we have 26 rows of seats and every row has 6 seat which are named by letters A-F.\n"
-           "A and F seats are by the window! Best seat I think! ;)\n"
-           "B and E are in the middle!! Not worth, as you know. :(\n"
-           "C and D are by the aisle, which is not bad at all.\n\n\n"
-           "Here you can see current reservation status: \n\n");
-    if (print_seat_map() == false) {
 
-    }
-}
+int user_input_number(passenger *ptr) {
+    char line[LINE_SIZE];
+    FILE *fp = fopen(FILE_MAP, "r");
 
-bool ask_name_and_seat(PASSENGER_INFO *new_passenger, PASSENGER_INFO *head) {
-    char temporary_answer[NAME_LENGTH];
-    new_passenger->next = NULL;
-    if (head == NULL) {
-        head = new_passenger;
+    if (fp == NULL) {
+        printf("\nCan't open file.\n");
+        fclose(fp);
+        return 1;
     }
-    printf("Write 'stop' to stop entering passengers,\n"
-           "or give your LASTNAME and FIRSTNAME to reserve seat (example 'Meikalainen Matti'.");
+
+    printf("Give number of row where you want to sit.\n");
     printf(">> ");
-    if (fgets(temporary_answer, NAME_LENGTH, stdin) == NULL) {
-        printf("Memory allocation failed");
-        return false;
+    if (fgets(line, sizeof(line), stdin) == NULL) {
+        printf("\nCan't read input.\n\n");
+        fclose(fp);
+        return 1;
     }
-    if (strcmp(temporary_answer, "stop") == 0) {
-        return false;
+    //if user enter too long input then we clear buffer
+    if (strchr(line, '\n') == NULL) {
+        while (getchar() != '\n') {}
+        fclose(fp);
+        return 1;
     }
-    return true;
-
+    //if input is not numbers then we send error
+    if (sscanf(line, "%d", &ptr->number) != 1) {
+        printf("Invalid input\n");
+        fclose(fp);
+        return 1;
+    }
+    if (ptr->number < 1 || ptr->number > 26) {
+        printf("Number has to be 1-26\n");
+        fclose(fp);
+        return 1;
+    }
+    /*
+    while (!feof(fp)) {
+        if (fgets(line, sizeof(line), fp) == NULL) {
+            printf("\nCan't read input.\n\n");
+            fclose(fp);
+            return 1;
+        }
+        if (strchr(line, '\n') == NULL) {
+            while (getchar() != '\n') {}
+        }
+    }*/
 
 
     return 0;
 }
 
-bool open_file(FILE *file, PASSENGER_INFO *new_passenger) {
+int user_input_seat(passenger *ptr) {
+    char line[LINE_SIZE];
 
-    return 1;
-}
+    printf("Give your seat (A-F).\n");
+    printf(">> ");
+    if (fgets(line, LINE_SIZE, stdin) != NULL) {
+        if (line[strlen(line) - 1] == '\n') {
+            line[strlen(line) - 1] = '\0';
+        }
+        if (strlen(line) != 1) {
+            printf("Invalid seat.\n");
+            printf("Seat has to have exactly one character.\n");
+            return 1;
+        }
+        char seat = line[0];
+        seat = toupper(seat);
+        if (seat < 'A' || seat > 'F') {
+            printf("Invalid seat.\n");
+            return 1;
+        }
 
-
-bool add_passenger_to_file() {
-
-}
-
-bool print_seat_map() {
-
-}
-
-bool print_passengers() {
-
+        ptr->seat_character = seat;
+    }
+    return 0;
 }
